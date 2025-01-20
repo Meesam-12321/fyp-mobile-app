@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,9 +11,24 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import AppLayout from '../Components/Layout';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const HomeScreen = ({ navigation }) => {
   const { width } = Dimensions.get('window');
+
+  const [authToken, setAuthToken] = useState('');
+
+  // Fetching the token from AsyncStorage
+  useEffect(() => {
+    const fetchToken = async () => {
+      const token = await AsyncStorage.getItem('userToken');
+      if (token) {
+        setAuthToken(token); // Set the token from storage to state
+      }
+    };
+
+    fetchToken();
+  }, []);
 
   const appointments = [
     { id: '1', doctor: 'Dr. Sarah Johnson', time: 'Tomorrow, 10:30 AM', type: 'Online' },
@@ -25,25 +40,25 @@ const HomeScreen = ({ navigation }) => {
       id: '1', 
       title: 'Book Appointment', 
       icon: 'event-available',
-      screen: 'AppointmentBookingScreen'
+      screen: 'AppointmentBookingScreen',
     },
     { 
       id: '2', 
       title: 'Chat with Doctor', 
       icon: 'chat',
-      screen: 'ChatScreen'
+      screen: 'ChatScreen',
     },
     { 
       id: '3', 
       title: 'AI Chatbot', 
       icon: 'smart-toy',
-      screen: 'ChatbotScreen'
+      screen: 'ChatbotScreen',
     },
     { 
       id: '4', 
       title: 'Search Doctor', 
       icon: 'search',
-      screen: 'DoctorSearchScreen'
+      screen: 'DoctorSearchScreen',
     },
   ];
 
@@ -57,7 +72,17 @@ const HomeScreen = ({ navigation }) => {
   const renderQuickLink = ({ item }) => (
     <TouchableOpacity
       style={[styles.quickLink, { width: width * 0.35 }]}
-      onPress={() => navigation.navigate(item.screen)}
+      onPress={() => {
+        // Pass token only if it's ChatScreen or DoctorSearchScreen
+        if (
+          (item.screen === 'ChatScreen' || item.screen === 'DoctorSearchScreen') &&
+          authToken
+        ) {
+          navigation.navigate(item.screen, { token: authToken }); // Passing token as a param
+        } else {
+          navigation.navigate(item.screen);
+        }
+      }}
     >
       <Icon name={item.icon} size={22} color="#fff" />
       <Text style={styles.quickLinkText}>{item.title}</Text>
@@ -133,10 +158,7 @@ const HomeScreen = ({ navigation }) => {
                 <Text style={styles.appointmentTime}>{item.time}</Text>
               </View>
               <Text
-                style={[
-                  styles.appointmentType,
-                  item.type === 'Online' ? styles.online : styles.inPerson,
-                ]}
+                style={[styles.appointmentType, item.type === 'Online' ? styles.online : styles.inPerson]}
               >
                 {item.type}
               </Text>
@@ -150,157 +172,156 @@ const HomeScreen = ({ navigation }) => {
   );
 };
 
-// Styles remain unchanged
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#121212',
-    paddingHorizontal: 20,
-  },
-  welcomeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 60,
-    marginBottom: 20,
-  },
-  welcomeText: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  profilePicturePlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#333',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1e1e1e',
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    height: 40,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    color: '#fff',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginTop: 15,
-  },
-  quickLinksContainer: {
-    marginTop: 10,
-  },
-  quickLink: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    backgroundColor: '#333',
-    height: 80,
-    borderRadius: 10,
-  },
-  quickLinkText: {
-    marginTop: 6,
-    color: '#fff',
-    fontSize: 11,
-    textAlign: 'center',
-  },
-  healthInsightsContainer: {
-    marginTop: 10,
-  },
-  healthInsightCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1e1e1e',
-    marginBottom: 10,
-    padding: 12,
-    borderRadius: 8,
-  },
-  healthInsightTextContainer: {
-    marginLeft: 12,
-  },
-  healthInsightTitle: {
-    fontSize: 14,
-    color: '#fff',
-  },
-  healthInsightValue: {
-    fontSize: 12,
-    color: '#888',
-  },
-  viewDetailedButton: {
-    backgroundColor: '#1e88e5',
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-    marginTop: 10,
-  },
-  viewDetailedText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  appointmentCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#1e1e1e',
-    marginVertical: 4,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    height: 80,
-    borderRadius: 8,
-  },
-  appointmentsContainer: {
-    paddingBottom: 80,
-    flexGrow: 1,
-  },
-  doctorName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  appointmentTime: {
-    fontSize: 12,
-    color: '#888',
-  },
-  appointmentType: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    padding: 5,
-    borderRadius: 5,
-    textAlign: 'center',
-  },
-  online: {
-    backgroundColor: '#1e88e5',
-    color: '#fff',
-  },
-  inPerson: {
-    backgroundColor: '#d32f2f',
-    color: '#fff',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#1e1e1e',
-    paddingVertical: 8,
-  },
-  footerButton: {
-    alignItems: 'center',
-  },
-  footerText: {
-    color: '#fff',
-    fontSize: 11,
-    marginTop: 2,
-  },
-});
-
-export default HomeScreen;
+    container: {
+      flex: 1,
+      backgroundColor: '#121212',
+      paddingHorizontal: 20,
+    },
+    welcomeContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 60,
+      marginBottom: 20,
+    },
+    welcomeText: {
+      fontSize: 22,
+      fontWeight: 'bold',
+      color: '#fff',
+    },
+    profilePicturePlaceholder: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: '#333',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#1e1e1e',
+      paddingHorizontal: 10,
+      borderRadius: 8,
+      height: 40,
+    },
+    searchInput: {
+      flex: 1,
+      marginLeft: 10,
+      color: '#fff',
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: '#fff',
+      marginTop: 15,
+    },
+    quickLinksContainer: {
+      marginTop: 10,
+    },
+    quickLink: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 10,
+      backgroundColor: '#333',
+      height: 80,
+      borderRadius: 10,
+    },
+    quickLinkText: {
+      marginTop: 6,
+      color: '#fff',
+      fontSize: 11,
+      textAlign: 'center',
+    },
+    healthInsightsContainer: {
+      marginTop: 10,
+    },
+    healthInsightCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#1e1e1e',
+      marginBottom: 10,
+      padding: 12,
+      borderRadius: 8,
+    },
+    healthInsightTextContainer: {
+      marginLeft: 12,
+    },
+    healthInsightTitle: {
+      fontSize: 14,
+      color: '#fff',
+    },
+    healthInsightValue: {
+      fontSize: 12,
+      color: '#888',
+    },
+    viewDetailedButton: {
+      backgroundColor: '#1e88e5',
+      paddingVertical: 10,
+      alignItems: 'center',
+      borderRadius: 8,
+      marginTop: 10,
+    },
+    viewDetailedText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: 'bold',
+    },
+    appointmentCard: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: '#1e1e1e',
+      marginVertical: 4,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      height: 80,
+      borderRadius: 8,
+    },
+    appointmentsContainer: {
+      paddingBottom: 80,
+      flexGrow: 1,
+    },
+    doctorName: {
+      fontSize: 14,
+      fontWeight: 'bold',
+      color: '#fff',
+    },
+    appointmentTime: {
+      fontSize: 12,
+      color: '#888',
+    },
+    appointmentType: {
+      fontSize: 12,
+      fontWeight: 'bold',
+      padding: 5,
+      borderRadius: 5,
+      textAlign: 'center',
+    },
+    online: {
+      backgroundColor: '#1e88e5',
+      color: '#fff',
+    },
+    inPerson: {
+      backgroundColor: '#d32f2f',
+      color: '#fff',
+    },
+    footer: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      backgroundColor: '#1e1e1e',
+      paddingVertical: 8,
+    },
+    footerButton: {
+      alignItems: 'center',
+    },
+    footerText: {
+      color: '#fff',
+      fontSize: 11,
+      marginTop: 2,
+    },
+  });
+  
+  export default HomeScreen;

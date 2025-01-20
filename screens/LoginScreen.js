@@ -9,6 +9,32 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const InputField = ({ icon, placeholder, value, onChangeText, secureTextEntry, toggleVisibility, isPassword }) => (
+  <View style={styles.inputContainer}>
+    <MaterialIcons name={icon} size={24} color="#ffffff" style={styles.inputIcon} />
+    <TextInput
+      style={styles.input}
+      placeholder={placeholder}
+      placeholderTextColor="#666"
+      value={value}
+      onChangeText={onChangeText}
+      secureTextEntry={secureTextEntry}
+      autoCorrect={false}
+      autoCapitalize="none"
+    />
+    {isPassword && (
+      <TouchableOpacity onPress={toggleVisibility} style={styles.visibilityIcon}>
+        <MaterialIcons
+          name={secureTextEntry ? 'visibility-off' : 'visibility'}
+          size={24}
+          color="#ffffff"
+        />
+      </TouchableOpacity>
+    )}
+  </View>
+);
 
 const LoginScreen = () => {
   const navigation = useNavigation();
@@ -20,7 +46,7 @@ const LoginScreen = () => {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/auth/patient/login', {
+      const response = await fetch('http://172.16.14.187:3000/api/auth/patient/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -37,8 +63,8 @@ const LoginScreen = () => {
         throw new Error(data.error || 'Login failed');
       }
 
-      // Store the token (you might want to use AsyncStorage or similar)
-      // await AsyncStorage.setItem('userToken', data.token);
+      // Store the token in AsyncStorage
+      await AsyncStorage.setItem('userToken', data.token);
 
       // Navigate to Home screen
       navigation.replace('HomeScreen');
@@ -46,29 +72,6 @@ const LoginScreen = () => {
       Alert.alert('Error', error.message);
     }
   };
-
-  const InputField = ({ icon, placeholder, value, onChangeText, secureTextEntry, toggleVisibility, isPassword }) => (
-    <View style={styles.inputContainer}>
-      <MaterialIcons name={icon} size={24} color="#ffffff" style={styles.inputIcon} />
-      <TextInput
-        style={styles.input}
-        placeholder={placeholder}
-        placeholderTextColor="#666"
-        value={value}
-        onChangeText={onChangeText}
-        secureTextEntry={secureTextEntry}
-      />
-      {isPassword && (
-        <TouchableOpacity onPress={toggleVisibility} style={styles.visibilityIcon}>
-          <MaterialIcons
-            name={secureTextEntry ? 'visibility-off' : 'visibility'}
-            size={24}
-            color="#ffffff"
-          />
-        </TouchableOpacity>
-      )}
-    </View>
-  );
 
   return (
     <View style={styles.container}>
@@ -82,14 +85,14 @@ const LoginScreen = () => {
           icon="email"
           placeholder="Email"
           value={formData.email}
-          onChangeText={(text) => setFormData({ ...formData, email: text })}
+          onChangeText={(text) => setFormData((prev) => ({ ...prev, email: text }))}
         />
 
         <InputField
           icon="lock"
           placeholder="Password"
           value={formData.password}
-          onChangeText={(text) => setFormData({ ...formData, password: text })}
+          onChangeText={(text) => setFormData((prev) => ({ ...prev, password: text }))}
           secureTextEntry={!showPassword}
           toggleVisibility={() => setShowPassword(!showPassword)}
           isPassword

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,22 +10,53 @@ import {
   Platform,
   Image,
   Animated,
-  Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import axios from 'axios';
+import io from 'socket.io-client';
+
+// WebSocket URL (Localhost for now, adjust as needed for production)
+const SOCKET_URL = 'http://localhost:3000'; // Update to your production server URL
 
 const ConversationScreen = ({ navigation, route }) => {
-  const { name, avatar } = route.params || { name: 'John Doe', avatar: 'https://i.pravatar.cc/150' };
-  const [messages, setMessages] = useState([
-    { id: '1', text: 'Hello! How are you?', sender: 'other', time: '10:00 AM' },
-    { id: '2', text: "I am good! What about you?", sender: 'me', time: '10:01 AM' },
-    { id: '3', text: "I am doing well, thank you!", sender: 'other', time: '10:02 AM' },
-  ]);
+  const { name, avatar, senderId, receiverId } = route.params || { name: 'John Doe', avatar: 'https://i.pravatar.cc/150' };
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const flatListRef = useRef(null);
   const typingAnimation = useRef(new Animated.Value(0)).current;
+  const socket = useRef(null);
 
-  const handleSendMessage = () => {
+  useEffect(() => {
+    // Initialize WebSocket connection
+    socket.current = io(SOCKET_URL);
+
+    // Join the socket room for the current conversation
+    socket.current.emit('join', senderId);
+
+    // Listen for incoming messages
+    socket.current.on('receiveMessage', (message) => {
+      setMessages((prevMessages) => [...prevMessages, message]);
+    });
+
+    // Fetch previous messages
+    fetchMessages();
+
+    return () => {
+      socket.current.disconnect();
+    };
+  }, []);
+
+  const fetchMessages = async () => {
+    try {
+      const response = await axios.get(`http://localhost:3000/api/chat/messages/{senderId}/{receiverId}`);
+      setMessages(response.data.data);
+      flatListRef.current?.scrollToEnd();
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+    }
+  };
+
+  const handleSendMessage = async () => {
     if (newMessage.trim() === '') return;
 
     const currentTime = new Date().toLocaleTimeString([], { 
@@ -33,28 +64,45 @@ const ConversationScreen = ({ navigation, route }) => {
       minute: '2-digit'
     });
 
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      { 
-        id: Date.now().toString(), 
-        text: newMessage, 
-        sender: 'me',
-        time: currentTime
-      },
-    ]);
-    setNewMessage('');
-    
-    // Scroll to bottom after sending message
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    const messageData = {
+      senderId,
+      receiverId,
+      message: newMessage,
+      senderModel: "Patient", // Adjust based on your logic (sender model)
+      receiverModel: "Doctor", // Adjust based on your logic (receiver model)
+    };
+
+    try {
+      // Send the message to the backend via API
+      await axios.post('http://localhost:3000/api/chat/send-message', messageData);
+
+      // Emit the message via WebSocket
+      socket.current.emit('sendMessage', messageData);
+
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { 
+          id: Date.now().toString(),
+          text: newMessage, 
+          sender: 'me',
+          time: currentTime
+        },
+      ]);
+      setNewMessage('');
+      
+      // Scroll to bottom after sending message
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
 
     // Simulate typing indication for response
     simulateTypingResponse();
   };
 
   const simulateTypingResponse = () => {
-    // Show typing animation
     Animated.sequence([
       Animated.timing(typingAnimation, {
         toValue: 1,
@@ -68,12 +116,12 @@ const ConversationScreen = ({ navigation, route }) => {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      // Add simulated response
+      // Simulate backend response (optional for chat simulation)
       const currentTime = new Date().toLocaleTimeString([], { 
         hour: '2-digit', 
         minute: '2-digit'
       });
-      
+
       setTimeout(() => {
         setMessages(prev => [...prev, {
           id: Date.now().toString(),
@@ -96,12 +144,7 @@ const ConversationScreen = ({ navigation, route }) => {
         />
       )}
       <View
-        style={[
-          styles.messageContainer,
-          item.sender === 'me' ? styles.myMessage : styles.otherMessage,
-          index === messages.length - 1 && styles.lastMessage
-        ]}
-      >
+        style={[styles.messageContainer, item.sender === 'me' ? styles.myMessage : styles.otherMessage]}>
         <Text style={styles.messageText}>{item.text}</Text>
         <Text style={styles.messageTime}>{item.time}</Text>
       </View>
@@ -109,37 +152,14 @@ const ConversationScreen = ({ navigation, route }) => {
   );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      {/* Enhanced Header */}
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.headerLeft}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.headerLeft} onPress={() => navigation.goBack()}>
           <Icon name="arrow-back" size={24} color="#fff" />
-          <Image 
-            source={{ uri: avatar }}
-            style={styles.headerAvatar}
-          />
-          <View>
-            <Text style={styles.headerTitle}>{name}</Text>
-            <Text style={styles.headerSubtitle}>Online</Text>
-          </View>
+          <Image source={{ uri: avatar }} style={styles.headerAvatar} />
+          <Text style={styles.headerTitle}>{name}</Text>
         </TouchableOpacity>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Icon name="videocam" size={24} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Icon name="call" size={22} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Icon name="more-vert" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* Messages List */}
@@ -153,18 +173,12 @@ const ConversationScreen = ({ navigation, route }) => {
       />
 
       {/* Typing Indicator */}
-      <Animated.View style={[
-        styles.typingIndicator,
-        { opacity: typingAnimation }
-      ]}>
+      <Animated.View style={[styles.typingIndicator, { opacity: typingAnimation }]}>
         <Text style={styles.typingText}>Dr. {name} is typing...</Text>
       </Animated.View>
 
-      {/* Enhanced Input Field */}
+      {/* Input Field */}
       <View style={styles.inputContainer}>
-        <TouchableOpacity style={styles.inputIcon}>
-          <Icon name="emoji-emotions" size={24} color="#666" />
-        </TouchableOpacity>
         <TextInput
           style={styles.input}
           placeholder="Type a message"
@@ -173,26 +187,9 @@ const ConversationScreen = ({ navigation, route }) => {
           onChangeText={setNewMessage}
           multiline
         />
-        <View style={styles.inputRightIcons}>
-          <TouchableOpacity style={styles.inputIcon}>
-            <Icon name="attach-file" size={24} color="#666" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.inputIcon}>
-            <Icon name="photo-camera" size={24} color="#666" />
-          </TouchableOpacity>
-          {newMessage.trim() ? (
-            <TouchableOpacity 
-              style={styles.sendButton} 
-              onPress={handleSendMessage}
-            >
-              <Icon name="send" size={20} color="#fff" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.inputIcon}>
-              <Icon name="mic" size={24} color="#666" />
-            </TouchableOpacity>
-          )}
-        </View>
+        <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
+          <Icon name="send" size={20} color="#fff" />
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );

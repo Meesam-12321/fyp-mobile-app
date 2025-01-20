@@ -1,276 +1,150 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Alert, 
+  ActivityIndicator, 
+  KeyboardAvoidingView, 
+  ScrollView, 
+  Platform, 
+  TouchableWithoutFeedback, 
+  Keyboard 
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import axios from 'axios';
 
-const SignupScreen = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    medicalHistory: '',
-    allergies: '',
-    medications: '',
-    emergencyContact: {
-      name: '',
-      phone: '',
-      relationship: '',
-    },
-  });
+const SignupScreen = ({ navigation }) => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
+  // Handle sign-up form submission
   const handleSignup = async () => {
-    if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+    if (!name || !email || !password) {
+      Alert.alert('Error', 'Please fill all fields');
       return;
     }
 
+    setLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/auth/patient/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          medicalHistory: formData.medicalHistory,
-          allergies: formData.allergies,
-          medications: formData.medications,
-          emergencyContact: formData.emergencyContact,
-        }),
+      const response = await axios.post('http://localhost:3000/api/auth/patient/register', {
+        name,
+        email,
+        password,
       });
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
-      }
-
-      Alert.alert('Success', 'Registration successful!');
-      // Handle successful registration (e.g., navigation, token storage)
-      
+      // Successfully registered
+      setLoading(false);
+      Alert.alert('Success', 'Patient registered successfully');
+      navigation.navigate('LoginScreen'); // Navigate to login after successful registration
     } catch (error) {
-      Alert.alert('Error', error.message);
+      setLoading(false);
+      Alert.alert('Error', error.response ? error.response.data.error : 'Something went wrong');
     }
   };
 
-  const InputField = ({ icon, placeholder, value, onChangeText, secureTextEntry, toggleVisibility, isPassword }) => (
-    <View style={styles.inputContainer}>
-      <MaterialIcons name={icon} size={24} color="#ffffff" style={styles.inputIcon} />
-      <TextInput
-        style={styles.input}
-        placeholder={placeholder}
-        placeholderTextColor="#666"
-        value={value}
-        onChangeText={onChangeText}
-        secureTextEntry={secureTextEntry}
-      />
-      {isPassword && (
-        <TouchableOpacity onPress={toggleVisibility} style={styles.visibilityIcon}>
-          <MaterialIcons
-            name={secureTextEntry ? 'visibility-off' : 'visibility'}
-            size={24}
-            color="#ffffff"
-          />
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <Text style={styles.title}>Create Patient Account</Text>
-        <Text style={styles.subtitle}>Complete your medical profile</Text>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      style={{ flex: 1 }}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView contentContainerStyle={styles.container}>
+          <Text style={styles.title}>Sign Up</Text>
 
-        <InputField
-          icon="person"
-          placeholder="Full Name"
-          value={formData.name}
-          onChangeText={(text) => setFormData({ ...formData, name: text })}
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="Name"
+            placeholderTextColor="#fff"
+            value={name}
+            onChangeText={setName}
+          />
 
-        <InputField
-          icon="email"
-          placeholder="Email"
-          value={formData.email}
-          onChangeText={(text) => setFormData({ ...formData, email: text })}
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#fff"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+          />
 
-        <InputField
-          icon="lock"
-          placeholder="Password"
-          value={formData.password}
-          onChangeText={(text) => setFormData({ ...formData, password: text })}
-          secureTextEntry={!showPassword}
-          toggleVisibility={() => setShowPassword(!showPassword)}
-          isPassword
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor="#fff"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
 
-        <InputField
-          icon="lock"
-          placeholder="Confirm Password"
-          value={formData.confirmPassword}
-          onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
-          secureTextEntry={!showConfirmPassword}
-          toggleVisibility={() => setShowConfirmPassword(!showConfirmPassword)}
-          isPassword
-        />
+          {loading ? (
+            <ActivityIndicator size="large" color="#fff" />
+          ) : (
+            <TouchableOpacity style={styles.button} onPress={handleSignup}>
+              <Text style={styles.buttonText}>Sign Up</Text>
+            </TouchableOpacity>
+          )}
 
-        <InputField
-          icon="history"
-          placeholder="Medical History"
-          value={formData.medicalHistory}
-          onChangeText={(text) => setFormData({ ...formData, medicalHistory: text })}
-        />
-
-        <InputField
-          icon="warning"
-          placeholder="Allergies"
-          value={formData.allergies}
-          onChangeText={(text) => setFormData({ ...formData, allergies: text })}
-        />
-
-        <InputField
-          icon="medical-services"
-          placeholder="Current Medications"
-          value={formData.medications}
-          onChangeText={(text) => setFormData({ ...formData, medications: text })}
-        />
-
-        <Text style={styles.sectionTitle}>Emergency Contact</Text>
-        
-        <InputField
-          icon="person-outline"
-          placeholder="Emergency Contact Name"
-          value={formData.emergencyContact.name}
-          onChangeText={(text) => setFormData({
-            ...formData,
-            emergencyContact: { ...formData.emergencyContact, name: text }
-          })}
-        />
-
-        <InputField
-          icon="phone"
-          placeholder="Emergency Contact Phone"
-          value={formData.emergencyContact.phone}
-          onChangeText={(text) => setFormData({
-            ...formData,
-            emergencyContact: { ...formData.emergencyContact, phone: text }
-          })}
-        />
-
-        <InputField
-          icon="people"
-          placeholder="Relationship to Patient"
-          value={formData.emergencyContact.relationship}
-          onChangeText={(text) => setFormData({
-            ...formData,
-            emergencyContact: { ...formData.emergencyContact, relationship: text }
-          })}
-        />
-
-        <TouchableOpacity style={styles.button} onPress={handleSignup}>
-          <Text style={styles.buttonText}>Create Account</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.loginText}>
-          Already have an account?{' '}
-          <Text style={styles.loginLink} onPress={() => alert('Go to Login')}>
-            Login
-          </Text>
-        </Text>
-      </ScrollView>
-    </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('LoginScreen')}
+            style={styles.link}
+          >
+            <Text style={styles.linkText}>Already have an account? Log In</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#121212', // Dark background
+    padding: 20,
+    paddingBottom: 40, // Add some bottom padding for comfort
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
+    color: '#fff',
     fontWeight: 'bold',
-    color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#888',
-    textAlign: 'center',
     marginBottom: 30,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginTop: 20,
-    marginBottom: 15,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E1E1E',
-    borderRadius: 10,
-    marginBottom: 15,
-    paddingHorizontal: 15,
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
   input: {
-    flex: 1,
-    color: '#ffffff',
+    width: '100%',
+    height: 50,
+    backgroundColor: '#333', // Dark input background
+    borderRadius: 10,
+    color: '#fff',
+    paddingHorizontal: 15,
+    marginBottom: 15,
     fontSize: 16,
-  },
-  visibilityIcon: {
-    padding: 5,
   },
   button: {
-    backgroundColor: '#007AFF',
-    borderRadius: 10,
-    paddingVertical: 15,
+    width: '100%',
+    height: 50,
+    backgroundColor: '#6200ea', // Purple button color
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 20,
+    borderRadius: 10,
   },
   buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
+    color: '#fff',
+    fontSize: 18,
     fontWeight: 'bold',
   },
-  loginText: {
+  link: {
+    marginTop: 20,
+  },
+  linkText: {
+    color: '#bbb',
     fontSize: 14,
-    color: '#ffffff',
-    textAlign: 'center',
-    marginTop: 10,
-  },
-  loginLink: {
-    color: '#007AFF',
-    fontWeight: 'bold',
   },
 });
 
